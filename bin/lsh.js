@@ -36,6 +36,17 @@ try {
     config = startConfig;
 }
 
+// Fornat logs
+const formatLog = (input, type) => {
+    if (type === 'ok') {
+        return ` ${chalk.green('✓')} ${input}`;
+    } else if (type === 'nok') {
+        return ` ${chalk.red('✗')} ${input}`;
+    } else {
+        return '';
+    }
+}
+
 // Waiter function for stack events
 const waiter = (cloudformation, status, timeout=2000) => {
     return new Promise((resolve, reject) => {
@@ -65,7 +76,7 @@ vorpal
                 verticalLayout: "default"
             })
         ))
-        this.log('Welcome to interactive mode.\nYou can now directly enter arbitrary shell commands. To exit, type `exit`.');
+        this.log('Welcome to the Lambda shell!\nYou can now directly enter arbitrary shell commands. To exit, type `exit`.');
         callback();
     })
     .delimiter('$ ')
@@ -145,15 +156,17 @@ vorpal
         archive.directory('lambda/', false);
         archive.finalize();
 
+        this.log(formatLog('ZIP file created', 'ok'));
+
         // Check if S3 bucket exists
         try {
             await s3.headBucket({
                 Bucket: bucketName
             }).promise();
             bucketExists = true;
-            this.log('Bucket exists');
+            this.log(formatLog('Bucket exists', 'ok'));
         } catch (err) {
-            this.log('Bucket doesn\'t exist')
+            this.log(formatLog('Bucket doesn\'t exist', 'ok'));
         }
 
         // If not, create S3 bucket
@@ -163,9 +176,9 @@ vorpal
                     Bucket: bucketName,
                     ACL: 'private'
                 }).promise();
-                this.log('Bucket created!')
+                this.log(formatLog('Bucket created!', 'ok'));
             } catch (err) {
-                this.log(err);
+                this.log(formatLog('S3 bucket creation failed', 'nok'));
                 callback();
             }
         }
@@ -177,9 +190,9 @@ vorpal
                 Key: 'lambda.zip', 
                 Body: fs.createReadStream(path.join(__dirname, '../', '/lambda.zip'))
             }).promise();
-            this.log('Uploaded Lambda function')
+            this.log(formatLog('Uploaded Lambda function', 'ok'));
         } catch (err) {
-            this.log(err);
+            this.log(formatLog('Upload of Lambda function failed', 'nok'));
             callback();
         }
 
@@ -190,11 +203,11 @@ vorpal
                 Key: 'lsh.json', 
                 Body: fs.createReadStream(path.join(__dirname, '../', '/template/lsh.json'))
             }).promise();
-            this.log('Uploaded template');
+            this.log(formatLog('Uploaded CloudFormation template', 'ok'));
             // Set template URL
             templateURL = uploadTemplateResult.Location;
         } catch (err) {
-            this.log(err);
+            this.log(formatLog('Upload of CloudFormation template failed', 'nok'));
             callback();
         }
 
@@ -204,9 +217,9 @@ vorpal
         // Create or update stack
         try {
             await cloudformation.createStack(stackParams).promise();
-            this.log('Stack creation triggered');
+            this.log(formatLog('Stack creation triggered', 'ok'));
             await waiter(cloudformation, 'CREATE_COMPLETE');
-            this.log('Stack created');
+            this.log(formatLog('Stack created', 'ok'));
             callback();
             
         } catch (err) {
@@ -214,13 +227,13 @@ vorpal
                 this.log('Stack already exists, updating stack');
                 try {
                     await cloudformation.updateStack(stackParams).promise();
-                    this.log('Stack update triggered');
+                    this.log(formatLog('Stack update triggered', 'ok'));
                     await waiter(cloudformation, 'UPDATE_COMPLETE');
-                    this.log('Stack updated');
+                    this.log(formatLog('Stack updated', 'ok'));
                     callback();
                 } catch (err) {
                     if (err.code === 'ValidationError') {
-                        this.log('No updates, skipping');
+                        this.log(formatLog('No updates, skipping', 'ok'));
                     }
                     callback();
                 }
@@ -252,8 +265,9 @@ vorpal
                     Quiet: true
                 }
             }).promise();
-            this.log('Deleted keys in S3 bucket');
+            this.log(formatLog('Deleted keys in S3 bucket', 'ok'));
         } catch (err) {
+            this.log(formatLog('Deletion of S3 keys failed', 'nok'));
             callback();
         }
 
@@ -262,8 +276,9 @@ vorpal
             await s3.deleteBucket({
                 Bucket: config.bucketName
             }).promise();
-            this.log('Deleted S3 bucket');
+            this.log(formatLog('Deleted S3 bucket', 'ok'));
         } catch (err) {
+            this.log(formatLog('Deletion of S3 bucket failed', 'nok'));
             callback();
         }
 
@@ -272,16 +287,16 @@ vorpal
             await cloudformation.deleteStack({
                 StackName: config.stackName
             }).promise();
-            this.log('Stack deletion triggered');
+            this.log(formatLog('Stack deletion triggered', 'ok'));
             await waiter(cloudformation, 'DELETE_COMPLETE');
-            this.log('Stack deleted');
+            this.log(formatLog('Stack deleted', 'ok'));
             callback();
         } catch (err) {
             if (err.code === 'ValidationError') {
-                this.log('Stack deleted');
+                this.log(formatLog('Stack deleted', 'ok'));
                 callback();
             } else {
-                this.log(err);
+                this.log(formatLog('Deletion of CloudFormation stack failed', 'nok'));
                 callback();
             }
         }
