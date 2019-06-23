@@ -1,19 +1,19 @@
 # lsh - The Lambda shell
 Run interactive shell commands on AWS Lambda
 
-[![asciicast](https://asciinema.org/a/3sXv75GuyT3BA79fuLyvJSaa3.svg)](https://asciinema.org/a/3sXv75GuyT3BA79fuLyvJSaa3?autoplay=1)
+[![asciicast](https://asciinema.org/a/3sXv75GuyT3BA79fuLyvJSaa3.svg)](https://asciinema.org/a/3sXv75GuyT3BA79fuLyvJSaa3?autoplay=1&t=0)
 
 ## Installation
 
-You can install `lsh` via
+You can install the Lambda shell (`lsb`) via
 
 ```bash
-$ npm i lsh -g
+$ npm i -g lambda-shell
 ```
 
 ## Usage
 
-In your favorite terminal, just run 
+After the npm installation has finished, just run 
 
 ```bash
 $ lsh
@@ -116,4 +116,3 @@ To uninstall the created stack run the following command:
 ```text
 λ uninstall
 ```
-

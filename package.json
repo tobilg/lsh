@@ -1,5 +1,5 @@
 {
-  "name": "lsh",
+  "name": "lambda-shell",
   "version": "0.1.0",
   "description": "Run interactive shell commands on AWS Lambda",
   "main": "bin/lsh.js",
@@ -16,7 +16,10 @@
   "keywords": [
     "aws",
     "lambda",
-    "shell"
+    "shell",
+    "interactive",
+    "cli",
+    "container"
   ],
   "author": "TobiLG <tobilg@gmail.com>",
   "license": "MIT",
