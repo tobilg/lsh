@@ -61,3 +61,4 @@ typings/
 .next
 
 lambda.zip
+.DS_Store
