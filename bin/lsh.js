@@ -1,22 +1,40 @@
 #! /usr/bin/env node
-const vorpal = require('vorpal')();
 const package = require('../package.json');
+const vorpal = require('vorpal')();
 const archiver = require('archiver');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const AWS = require('aws-sdk');
 const figlet = require('figlet');
 const chalk = require('chalk');
 
-// Configuration
-let config = {
-    bucketName: 'lsh-abcdef',
-    memorySize: 1536,
-    timeout: 60,
-    region: 'us-east-1',
-    functionName: 'lsh',
-    stackName: 'lambda-shell'
-};
+// Create config file
+const configPath = `${os.homedir()}/.lsh`;
+
+// Store config
+let config = {};
+
+try {
+    if (fs.statSync(configPath)) {
+        // Load config file
+        config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    }
+} catch (err) {
+    // Create config file
+    const startConfig = {
+        bucketName: `lsh-${Math.random().toString(36).substring(2, 15)}`,
+        memorySize: 1536,
+        timeout: 60,
+        region: 'us-east-1',
+        functionName: 'lsh',
+        stackName: 'lambda-shell'
+    };
+    // Write to config file
+    fs.writeFileSync(configPath, JSON.stringify(startConfig));
+    // Use start config
+    config = startConfig;
+}
 
 // Waiter function for stack events
 const waiter = (cloudformation, status, timeout=2000) => {
@@ -24,7 +42,6 @@ const waiter = (cloudformation, status, timeout=2000) => {
         const interval = setInterval(async () => {
             try {
                 const result = await cloudformation.describeStackEvents({ StackName: config.stackName }).promise();
-                //self.log(JSON.stringify(result.StackEvents))
                 result.StackEvents.forEach(resource => {
                     if (resource.ResourceType === 'AWS::CloudFormation::Stack' && resource.ResourceStatus === status) {
                         clearInterval(interval);
@@ -86,7 +103,6 @@ vorpal
     .option('-m, --memory <memoryMegabytes>', 'Amount of memory in meagabytes the Lambda function shall have available (default: 1536).')
     .option('-t, --timeout <timeoutSeconds>', 'Timeout in seconds of the Lambda function (default: 60).')
     .action(async function(command, callback) {
-        this.log(command);
 
         // Defaults
         const bucketName = (command.options.bucket ? command.options.bucket : config.bucketName);
