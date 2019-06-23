@@ -5,7 +5,7 @@ Run interactive shell commands on AWS Lambda
 
 ## Installation
 
-You can install the Lambda shell (`lsb`) via
+You can install the Lambda shell (`lsh`) via
 
 ```bash
 $ npm i -g lambda-shell
