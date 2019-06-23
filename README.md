@@ -6,10 +6,16 @@ Run interactive shell commands on AWS Lambda
 You can install `lsh` via
 
 ```bash
-$ npm i -g lsh
+$ npm i lsh -g
 ```
 
 ## Usage
+
+In your favorite terminal, just run 
+
+```bash
+$ lsh
+```
 
 You can display the `help` like this:
 
