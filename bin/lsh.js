@@ -147,7 +147,7 @@ vorpal
         const cloudformation = new AWS.CloudFormation({ apiVersion: '2010-05-15', region: region });
 
         // Create archive of Lambda function
-        const output = fs.createWriteStream(path.join(__dirname, '../', '/lambda.zip'));
+        const output = fs.createWriteStream(path.join(os.tmpdir(), '/lambda.zip'));
         const archive = archiver('zip', {
             zlib: { level: 9 }
         });
