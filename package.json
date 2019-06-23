@@ -1,8 +1,11 @@
 {
   "name": "lsh",
   "version": "0.1.0",
-  "description": "Run shell commands on AWS Lambda",
+  "description": "Run interactive shell commands on AWS Lambda",
   "main": "bin/lsh.js",
+  "bin": {
+    "lsh": "bin/lsh.js"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
