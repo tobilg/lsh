@@ -188,7 +188,7 @@ vorpal
             await s3.upload({
                 Bucket: bucketName, 
                 Key: 'lambda.zip', 
-                Body: fs.createReadStream(path.join(__dirname, '../', '/lambda.zip'))
+                Body: fs.createReadStream(path.join(os.tmpdir(), '/lambda.zip'))
             }).promise();
             this.log(formatLog('Uploaded Lambda function', 'ok'));
         } catch (err) {
