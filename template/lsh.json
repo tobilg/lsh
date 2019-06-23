@@ -1,0 +1,77 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "lsh - AWS Lambda function for running shell commands",
+  "Parameters": {
+    "LambdaFunctionName": {
+      "Description": "Name of Lambda function",
+      "Type": "String",
+      "Default": "lsh"
+    },
+    "S3Bucket": {
+      "Description": "S3 bucket name containing the Lambda function ZIP file",
+      "Type": "String"
+    },
+    "MemorySize": {
+      "Description": "Lambda memory size",
+      "Type": "Number",
+      "Default": 1536
+    },
+    "LambdaTimeout": {
+      "Description": "Lambda function timeout",
+      "Type": "Number",
+      "Default": 60
+    }
+  },
+  "Resources": {
+    "InvokeRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [ {
+             "Effect": "Allow",
+             "Principal": {
+                "Service": [ "lambda.amazonaws.com" ]
+             },
+             "Action": [ "sts:AssumeRole" ]
+          } ]
+        },
+        "Path": "/",
+        "Policies": [ {
+          "PolicyName": "InvokePolicy",
+          "PolicyDocument": {
+            "Statement": [ {
+              "Effect": "Allow",
+              "Action": [
+                "lambda:InvokeFunction"
+              ],
+              "Resource": [
+                "*"
+              ]
+            } ]
+          }
+        } ]
+      }
+    },
+    "function": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "S3Bucket": { "Ref": "S3Bucket" },
+          "S3Key": "lambda.zip"
+        },
+        "FunctionName": { "Ref": "LambdaFunctionName" },
+        "Description": "lsh - Lambda function for running shell commands in Lambda environment",
+        "Handler": "index.handler",
+        "MemorySize": { "Ref": "MemorySize" },
+        "Role": {"Fn::GetAtt": ["InvokeRole", "Arn"] },
+        "Runtime": "nodejs8.10",
+        "Timeout": { "Ref": "LambdaTimeout" }
+      }
+    }
+  },
+  "Outputs": {
+    "LambdaFunction": {
+      "Value": {"Ref": "function"}
+    }
+  }
+}
