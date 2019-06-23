@@ -184,7 +184,6 @@ vorpal
 
         // Set template URL
         stackParams['TemplateURL'] = templateURL;
-        let self = this;
 
         // Create or update stack
         try {
@@ -211,8 +210,6 @@ vorpal
                 }
             }
         }
-
-        //callback();
         
     });
 
