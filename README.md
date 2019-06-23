@@ -1,7 +1,7 @@
 # lsh - The Lambda shell
 Run interactive shell commands on AWS Lambda
 
-[![asciicast](https://asciinema.org/a/3sXv75GuyT3BA79fuLyvJSaa3.svg)](https://asciinema.org/a/3sXv75GuyT3BA79fuLyvJSaa3)
+[![asciicast](https://asciinema.org/a/3sXv75GuyT3BA79fuLyvJSaa3.svg)](https://asciinema.org/a/3sXv75GuyT3BA79fuLyvJSaa3?autoplay=1)
 
 ## Installation
 
