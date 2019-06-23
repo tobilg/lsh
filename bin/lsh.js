@@ -39,10 +39,10 @@ const waiter = (cloudformation, status, timeout=2000) => {
 }
 
 vorpal
-    .mode('shell', 'Switch into interactive shell mode as if you\'d be ssh\'ed in the Lambda container.')
+    .mode('shell', 'Switch into interactive shell mode.')
     .init(function(args, callback){
         this.log(chalk.green(
-            figlet.textSync("Lambda shell", {
+            figlet.textSync("lsh", {
                 font: "3D-ASCII",
                 horizontalLayout: "default",
                 verticalLayout: "default"
