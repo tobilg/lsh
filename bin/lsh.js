@@ -106,9 +106,11 @@ vorpal
         // Handle result
         const payload = JSON.parse(runResult.Payload);
 
+        // Handle stderr
+        const stderr = Buffer.from(payload.stderr, 'base64').toString('ascii');
+
         // Check for error
-        if (payload.error) {
-            const stderr = Buffer.from(payload.stderr, 'base64').toString('ascii');
+        if (payload.error || stderr.length > 0) {
             this.log(stderr);
         } else if (payload.errorMessage) {
             this.log('Lambda execution failed');
