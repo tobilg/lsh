@@ -32,6 +32,7 @@ You can display the `help` like this:
     install [options]   Deploy the lsh stack in your AWS account.
     uninstall           Remove the lsh stack from your AWS account.
     version             Print version information.
+    config              Print the current Lambda configuration.
 
 ```
 
@@ -52,11 +53,15 @@ You can also specify options for the installation of the stack:
 -t, --timeout <timeoutSeconds>  Timeout in seconds of the Lambda function (default: 60).
 ```
 
-For example, to use a maxed-out Lambda shell, use 
+For example, to use a maxed-out Lambda shell in the `eu-central-1` region, use 
 
 ```text
-λ install -m 3076 -t 900
+λ install -m 3076 -t 900 -r eu-central-1
 ```
+
+#### Configuration updates
+
+You can update the Lambda configuration just by running `install` again with different options. This will trigger a CloudFormation stack update. You can then verify the changes by using the `config` command.
 
 ### Working with the interactive shell
 
@@ -108,6 +113,24 @@ _HANDLER=index.handler
 AWS_LAMBDA_FUNCTION_MEMORY_SIZE=1536
 _=/usr/bin/env
 ```
+
+**Hint**
+
+As `lsh` is invoking the Lambda function via request-response, it's for example not possible to edit files directly in the Lambda environment.
+
+### Show current configuration
+
+To check the current configuration, you can use 
+
+```text
+λ config
+ ✓ Memory     128mb
+ ✓ Timeout    120s
+ ✓ Region     us-east-1
+ ✓ S3 Bucket  lsh-j03nfi7agsd
+```
+
+The configuration can be changed by running `install` again and specifying different settings via the configuration options.
 
 ### Uninstall stack
 
