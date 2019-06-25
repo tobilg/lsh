@@ -139,3 +139,59 @@ To uninstall the created stack run the following command:
 ```text
 λ uninstall
 ```
+
+## Examples
+
+### Download aws-cli
+
+```bash
+λ shell 
+ ___       ________  ___  ___     
+|\  \     |\   ____\|\  \|\  \    
+\ \  \    \ \  \___|\ \  \\\  \   
+ \ \  \    \ \_____  \ \   __  \  
+  \ \  \____\|____|\  \ \  \ \  \ 
+   \ \_______\____\_\  \ \__\ \__\
+    \|_______|\_________\|__|\|__|
+             \|_________|         
+                                  
+                                  
+Welcome to the Lambda shell!
+You can now directly enter shell commands which will be run in the Lambda environment. To exit, type `exit`.
+λ $ curl "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" -o "awscli-bundle.zip"
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100 11.6M  100 11.6M    0     0  78.0M      0 --:--:-- --:--:-- --:--:-- 78.0M
+λ $ unzip awscli-bundle.zip
+Archive:  awscli-bundle.zip
+  inflating: awscli-bundle/install   
+  inflating: awscli-bundle/packages/argparse-1.2.1.tar.gz  
+  inflating: awscli-bundle/packages/rsa-3.4.2.tar.gz  
+  inflating: awscli-bundle/packages/ordereddict-1.1.tar.gz  
+  inflating: awscli-bundle/packages/simplejson-3.3.0.tar.gz  
+  inflating: awscli-bundle/packages/urllib3-1.25.3.tar.gz  
+  inflating: awscli-bundle/packages/python-dateutil-2.6.1.tar.gz  
+  inflating: awscli-bundle/packages/s3transfer-0.2.1.tar.gz  
+  inflating: awscli-bundle/packages/six-1.12.0.tar.gz  
+  inflating: awscli-bundle/packages/python-dateutil-2.8.0.tar.gz  
+  inflating: awscli-bundle/packages/virtualenv-15.1.0.tar.gz  
+  inflating: awscli-bundle/packages/jmespath-0.9.4.tar.gz  
+  inflating: awscli-bundle/packages/urllib3-1.22.tar.gz  
+  inflating: awscli-bundle/packages/botocore-1.12.175.tar.gz  
+  inflating: awscli-bundle/packages/colorama-0.3.9.tar.gz  
+  inflating: awscli-bundle/packages/PyYAML-3.13.tar.gz  
+  inflating: awscli-bundle/packages/pyasn1-0.4.5.tar.gz  
+  inflating: awscli-bundle/packages/docutils-0.14.tar.gz  
+  inflating: awscli-bundle/packages/PyYAML-5.1.tar.gz  
+  inflating: awscli-bundle/packages/futures-3.2.0.tar.gz  
+  inflating: awscli-bundle/packages/awscli-1.16.185.tar.gz  
+  inflating: awscli-bundle/packages/setup/setuptools_scm-1.15.7.tar.gz  
+λ $ ./awscli-bundle/install -b /tmp/bin/aws
+Running cmd: /usr/bin/python virtualenv.py --no-download --python /usr/bin/python /tmp/.local/lib/aws
+Running cmd: /tmp/.local/lib/aws/bin/pip install --no-cache-dir --no-index --find-links file:///tmp/awscli-bundle/packages/setup setuptools_scm-1.15.7.tar.gz
+Running cmd: /tmp/.local/lib/aws/bin/pip install --no-cache-dir --no-index --find-links file:///tmp/awscli-bundle/packages awscli-1.16.185.tar.gz
+You can now run: /tmp/bin/aws --version
+λ $ /tmp/bin/aws --version
+aws-cli/1.16.185 Python/2.7.16 Linux/4.14.123-95.109.amzn2.x86_64 exec-env/AWS_Lambda_nodejs8.10 botocore/1.12.175
+λ $ 
+```
