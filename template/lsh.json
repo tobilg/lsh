@@ -14,7 +14,7 @@
     "MemorySize": {
       "Description": "Lambda memory size",
       "Type": "Number",
-      "Default": 1536
+      "Default": 128
     },
     "LambdaTimeout": {
       "Description": "Lambda function timeout",
@@ -23,6 +23,13 @@
     }
   },
   "Resources": {
+    "LogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/lsh",
+        "RetentionInDays": 1
+      }
+    },
     "InvokeRole": {
       "Type": "AWS::IAM::Role",
       "Properties": {
@@ -46,6 +53,19 @@
               ],
               "Resource": [
                 "*"
+              ]
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "logs:CreateLogStream",
+                "logs:PutRetentionPolicy",
+                "logs:PutLogEvents"
+              ],
+              "Resource": [
+                {
+                  "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/lsh:*"
+                }
               ]
             } ]
           }

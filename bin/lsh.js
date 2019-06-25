@@ -24,7 +24,7 @@ try {
     // Create config file
     const startConfig = {
         bucketName: `lsh-${Math.random().toString(36).substring(2, 15)}`,
-        memorySize: 1536,
+        memorySize: 128,
         timeout: 60,
         region: 'us-east-1',
         functionName: 'lsh',
@@ -34,6 +34,11 @@ try {
     fs.writeFileSync(configPath, JSON.stringify(startConfig));
     // Use start config
     config = startConfig;
+}
+
+const persistConfig = () => {
+    // Write to config file
+    fs.writeFileSync(configPath, JSON.stringify(config));
 }
 
 // Fornat logs
@@ -50,17 +55,23 @@ const formatLog = (input, type) => {
 // Waiter function for stack events
 const waiter = (cloudformation, status, timeout=2000) => {
     return new Promise((resolve, reject) => {
+        const startTime = new Date().getTime();
+        let endTime = null;
         const interval = setInterval(async () => {
             try {
                 const result = await cloudformation.describeStackEvents({ StackName: config.stackName }).promise();
                 result.StackEvents.forEach(resource => {
                     if (resource.ResourceType === 'AWS::CloudFormation::Stack' && resource.ResourceStatus === status) {
+                        endTime = new Date().getTime();
                         clearInterval(interval);
-                        resolve();
+                        resolve(endTime-startTime);
                     }
                 });
+                console.log('.. Waiting');
             } catch (err) {
-                reject(err);
+                endTime = new Date().getTime();
+                clearInterval(interval);
+                reject({ err: err, took: (endTime-startTime) });
             }
         }, timeout);
     });
@@ -76,7 +87,7 @@ vorpal
                 verticalLayout: "default"
             })
         ))
-        this.log('Welcome to the Lambda shell!\nYou can now directly enter arbitrary shell commands. To exit, type `exit`.');
+        this.log('Welcome to the Lambda shell!\nYou can now directly enter shell commands which will be run in the Lambda environment. To exit, type `exit`.');
         callback();
     })
     .delimiter('$ ')
@@ -94,13 +105,15 @@ vorpal
 
         // Handle result
         const payload = JSON.parse(runResult.Payload);
-        const stdout = Buffer.from(payload.stdout, 'base64').toString('ascii');
-        const stderr = Buffer.from(payload.stderr, 'base64').toString('ascii');
 
         // Check for error
         if (payload.error) {
+            const stderr = Buffer.from(payload.stderr, 'base64').toString('ascii');
             this.log(stderr);
+        } else if (payload.errorMessage) {
+            this.log('Lambda execution failed');
         } else {
+            const stdout = Buffer.from(payload.stdout, 'base64').toString('ascii');
             this.log(stdout);
         }
 
@@ -115,11 +128,25 @@ vorpal
     .option('-t, --timeout <timeoutSeconds>', 'Timeout in seconds of the Lambda function (default: 60).')
     .action(async function(command, callback) {
 
-        // Defaults
-        const bucketName = (command.options.bucket ? command.options.bucket : config.bucketName);
-        const region = (command.options.region ? command.options.region : config.region);
-        const memorySize = (command.options.memory ? command.options.memory : config.memorySize);
-        const timeout = (command.options.timeout ? command.options.timeout : config.timeout);
+        // Handle configuration input
+        if (command.options.bucket) {
+            config.bucketName = command.options.bucket;
+        }
+        if (command.options.region) {
+            config.region = command.options.region;
+        }
+        if (command.options.memory) {
+            config.memorySize = parseInt(command.options.memory);
+        }
+        if (command.options.timeout) {
+            config.timeout = parseInt(command.options.timeout);
+        }
+
+        // Write current configuration
+        persistConfig(config);
+
+        // Set archive path
+        const lambdaArchivePath = path.join(os.tmpdir(), '/lambda.zip');
 
         // Dynamic values
         let bucketExists = false;
@@ -130,24 +157,24 @@ vorpal
             Parameters: [
                 {
                     ParameterKey: 'S3Bucket',
-                    ParameterValue: bucketName
+                    ParameterValue: config.bucketName
                 },
                 {
                     ParameterKey: 'MemorySize',
-                    ParameterValue: memorySize.toString()
+                    ParameterValue: config.memorySize.toString()
                 },
                 {
                     ParameterKey: 'LambdaTimeout',
-                    ParameterValue: timeout.toString()
+                    ParameterValue: config.timeout.toString()
                 }
             ]
         };
 
         const s3 = new AWS.S3();
-        const cloudformation = new AWS.CloudFormation({ apiVersion: '2010-05-15', region: region });
+        const cloudformation = new AWS.CloudFormation({ apiVersion: '2010-05-15', region: config.region });
 
         // Create archive of Lambda function
-        const output = fs.createWriteStream(path.join(os.tmpdir(), '/lambda.zip'));
+        const output = fs.createWriteStream(lambdaArchivePath);
         const archive = archiver('zip', {
             zlib: { level: 9 }
         });
@@ -156,12 +183,12 @@ vorpal
         archive.directory('lambda/', false);
         archive.finalize();
 
-        this.log(formatLog('ZIP file created', 'ok'));
+        this.log(formatLog(`Temporary Lambda function archive created at ${lambdaArchivePath}`, 'ok'));
 
         // Check if S3 bucket exists
         try {
             await s3.headBucket({
-                Bucket: bucketName
+                Bucket: config.bucketName
             }).promise();
             bucketExists = true;
             this.log(formatLog('Bucket exists', 'ok'));
@@ -173,7 +200,7 @@ vorpal
         if (!bucketExists) {
             try {
                 await s3.createBucket({
-                    Bucket: bucketName,
+                    Bucket: config.bucketName,
                     ACL: 'private'
                 }).promise();
                 this.log(formatLog('Bucket created!', 'ok'));
@@ -186,20 +213,20 @@ vorpal
         // Upload Lambda archive
         try {
             await s3.upload({
-                Bucket: bucketName, 
+                Bucket: config.bucketName, 
                 Key: 'lambda.zip', 
-                Body: fs.createReadStream(path.join(os.tmpdir(), '/lambda.zip'))
+                Body: fs.createReadStream(lambdaArchivePath)
             }).promise();
-            this.log(formatLog('Uploaded Lambda function', 'ok'));
+            this.log(formatLog('Uploaded Lambda function archive', 'ok'));
         } catch (err) {
-            this.log(formatLog('Upload of Lambda function failed', 'nok'));
+            this.log(formatLog('Upload of Lambda function archive failed', 'nok'));
             callback();
         }
 
         // Upload CloudFormation template
         try {
             const uploadTemplateResult = await s3.upload({
-                Bucket: bucketName, 
+                Bucket: config.bucketName, 
                 Key: 'lsh.json', 
                 Body: fs.createReadStream(path.join(__dirname, '../', '/template/lsh.json'))
             }).promise();
@@ -218,22 +245,21 @@ vorpal
         try {
             await cloudformation.createStack(stackParams).promise();
             this.log(formatLog('Stack creation triggered', 'ok'));
-            await waiter(cloudformation, 'CREATE_COMPLETE');
-            this.log(formatLog('Stack created', 'ok'));
+            const creationTimeTaken = await waiter(cloudformation, 'CREATE_COMPLETE');
+            this.log(formatLog(`Stack created (took ${creationTimeTaken}ms)`, 'ok'));
             callback();
-            
         } catch (err) {
             if (err.code === 'AlreadyExistsException') {
-                this.log('Stack already exists, updating stack');
+                this.log(formatLog('Stack already exists, updating stack', 'ok'));
                 try {
                     await cloudformation.updateStack(stackParams).promise();
                     this.log(formatLog('Stack update triggered', 'ok'));
-                    await waiter(cloudformation, 'UPDATE_COMPLETE');
-                    this.log(formatLog('Stack updated', 'ok'));
+                    const updateTimeTaken = await waiter(cloudformation, 'UPDATE_COMPLETE');
+                    this.log(formatLog(`Stack updated (took ${updateTimeTaken}ms)`, 'ok'));
                     callback();
                 } catch (err) {
                     if (err.code === 'ValidationError') {
-                        this.log(formatLog('No updates, skipping', 'ok'));
+                        this.log(formatLog('No resources changed, skipping', 'ok'));
                     }
                     callback();
                 }
@@ -288,12 +314,12 @@ vorpal
                 StackName: config.stackName
             }).promise();
             this.log(formatLog('Stack deletion triggered', 'ok'));
-            await waiter(cloudformation, 'DELETE_COMPLETE');
-            this.log(formatLog('Stack deleted', 'ok'));
+            const deletionTimeTaken = await waiter(cloudformation, 'DELETE_COMPLETE');
+            this.log(formatLog(`Stack deleted (took ${deletionTimeTaken}ms)`, 'ok'));
             callback();
-        } catch (err) {
-            if (err.code === 'ValidationError') {
-                this.log(formatLog('Stack deleted', 'ok'));
+        } catch (error) {
+            if (error.err.code === 'ValidationError') {
+                this.log(formatLog(`Stack deleted (took ${error.took}ms)`, 'ok'));
                 callback();
             } else {
                 this.log(formatLog('Deletion of CloudFormation stack failed', 'nok'));
@@ -307,6 +333,16 @@ vorpal
     .command('version', 'Print version information.')
     .action(function(command, callback) {
         this.log(package.version);
+        callback();
+    });
+
+vorpal
+    .command('config', 'Print the current Lambda configuration.')
+    .action(function(command, callback) {
+        this.log(formatLog(`Memory     ${config.memorySize}mb`, 'ok'));
+        this.log(formatLog(`Timeout    ${config.timeout}s`, 'ok'));
+        this.log(formatLog(`Region     ${config.region}`, 'ok'));
+        this.log(formatLog(`S3 Bucket  ${config.bucketName}`, 'ok'));
         callback();
     });
 
