@@ -150,6 +150,9 @@ vorpal
         // Set archive path
         const lambdaArchivePath = path.join(os.tmpdir(), '/lambda.zip');
 
+        // Set lambda path
+        const lambdaPath = path.join(__dirname, '../', 'lambda', 'index.js');
+
         // Dynamic values
         let bucketExists = false;
         let templateURL = null;
@@ -182,7 +185,7 @@ vorpal
         });
 
         archive.pipe(output);
-        archive.directory('lambda/', false);
+        archive.append(fs.createReadStream(lambdaPath), { name: 'index.js' });
         archive.finalize();
 
         this.log(formatLog(`Temporary Lambda function archive created at ${lambdaArchivePath}`, 'ok'));
