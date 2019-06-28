@@ -175,7 +175,7 @@ vorpal
             ]
         };
 
-        const s3 = new AWS.S3();
+        const s3 = new AWS.S3({ region: config.region });
         const cloudformation = new AWS.CloudFormation({ apiVersion: '2010-05-15', region: config.region });
 
         // Create archive of Lambda function
