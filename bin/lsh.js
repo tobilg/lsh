@@ -55,16 +55,23 @@ const formatLog = (input, type) => {
 // Waiter function for stack events
 const waiter = (cloudformation, status, timeout=2000) => {
     return new Promise((resolve, reject) => {
+        const errorStatus = ['CREATE_FAILED', 'UPDATE_FAILED', 'DELETE_FAILED', 'ROLLBACK_COMPLETE', 'ROLLBACK_FAILED', 'UPDATE_ROLLBACK_COMPLETE', 'UPDATE_ROLLBACK_FAILED'];
         const startTime = new Date().getTime();
         let endTime = null;
         const interval = setInterval(async () => {
             try {
                 const result = await cloudformation.describeStackEvents({ StackName: config.stackName }).promise();
                 result.StackEvents.forEach(resource => {
-                    if (resource.ResourceType === 'AWS::CloudFormation::Stack' && resource.ResourceStatus === status) {
-                        endTime = new Date().getTime();
-                        clearInterval(interval);
-                        resolve(endTime-startTime);
+                    if (resource.ResourceType === 'AWS::CloudFormation::Stack') {
+                        if (resource.ResourceStatus === status) {
+                            endTime = new Date().getTime();
+                            clearInterval(interval);
+                            resolve(endTime-startTime);
+                        } else if (errorStatus.indexOf(resource.ResourceStatus) > -1) {
+                            endTime = new Date().getTime();
+                            clearInterval(interval);
+                            reject({ err: `Failed with status '${resource.ResourceStatus}'`, took: (endTime-startTime) });
+                        }
                     }
                 });
                 console.log('.. Waiting');
@@ -254,7 +261,7 @@ vorpal
             this.log(formatLog(`Stack created (took ${creationTimeTaken}ms)`, 'ok'));
             callback();
         } catch (err) {
-            if (err.code === 'AlreadyExistsException') {
+            if (err.code && err.code === 'AlreadyExistsException') {
                 this.log(formatLog('Stack already exists, updating stack', 'ok'));
                 try {
                     await cloudformation.updateStack(stackParams).promise();
@@ -263,11 +270,16 @@ vorpal
                     this.log(formatLog(`Stack updated (took ${updateTimeTaken}ms)`, 'ok'));
                     callback();
                 } catch (err) {
-                    if (err.code === 'ValidationError') {
+                    if (err.code && err.code === 'ValidationError') {
                         this.log(formatLog('No resources changed, skipping', 'ok'));
+                    } else {
+                        this.log(formatLog(err.err, 'nok'));
                     }
                     callback();
                 }
+            } else {
+                this.log(formatLog(err.err, 'nok'));
+                callback();
             }
         }
         
@@ -323,11 +335,11 @@ vorpal
             this.log(formatLog(`Stack deleted (took ${deletionTimeTaken}ms)`, 'ok'));
             callback();
         } catch (error) {
-            if (error.err.code === 'ValidationError') {
+            if (error.err.code && error.err.code === 'ValidationError') {
                 this.log(formatLog(`Stack deleted (took ${error.took}ms)`, 'ok'));
                 callback();
             } else {
-                this.log(formatLog('Deletion of CloudFormation stack failed', 'nok'));
+                this.log(formatLog(error.err, 'nok'));
                 callback();
             }
         }
