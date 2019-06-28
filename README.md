@@ -1,7 +1,16 @@
 # lsh - The Lambda shell
+
 Run interactive shell commands on AWS Lambda
 
 [![asciicast](https://asciinema.org/a/3sXv75GuyT3BA79fuLyvJSaa3.svg)](https://asciinema.org/a/3sXv75GuyT3BA79fuLyvJSaa3?autoplay=1&t=0)
+
+## Motivation
+
+The main motivation for this project was to have a convenient way to
+
+* "Poke around" the AWS Lambda environment
+* Be able to have a "minimal" shell environment on AWS, without having to use more costly EC2 instances
+* Do some experiments in the AWS Lambda environment, like running Docker containers via [udocker](https://github.com/indigo-dc/udocker)
 
 ## Installation
 
