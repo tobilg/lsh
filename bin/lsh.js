@@ -102,31 +102,43 @@ vorpal
         
         // Instantiate
         const lambda = new AWS.Lambda({region: config.region});
-          
-        // Trigger lambda function
-        const runResult = await lambda.invoke({
-            FunctionName: config.functionName,
-            InvocationType: 'RequestResponse',
-            Payload: JSON.stringify({command: command})
-        }).promise();
 
-        // Handle result
-        const payload = JSON.parse(runResult.Payload);
+        try {
 
-        // Handle stderr
-        const stderr = Buffer.from(payload.stderr, 'base64').toString('ascii');
+            // Trigger lambda function
+            const runResult = await lambda.invoke({
+                FunctionName: config.functionName,
+                InvocationType: 'RequestResponse',
+                Payload: JSON.stringify({command: command})
+            }).promise();
 
-        // Check for error
-        if (payload.error || stderr.length > 0) {
-            this.log(stderr);
-        } else if (payload.errorMessage) {
-            this.log('Lambda execution failed');
-        } else {
-            const stdout = Buffer.from(payload.stdout, 'base64').toString('ascii');
-            this.log(stdout);
+            // Handle result
+            const payload = JSON.parse(runResult.Payload);
+
+            // Handle stderr
+            const stderr = Buffer.from(payload.stderr, 'base64').toString('ascii');
+
+            // Check for error
+            if (payload.error || stderr.length > 0) {
+                this.log(stderr);
+            } else if (payload.errorMessage) {
+                this.log('Lambda execution failed');
+            } else {
+                const stdout = Buffer.from(payload.stdout, 'base64').toString('ascii');
+                this.log(stdout);
+            }
+
+            callback();
+
+        } catch (err) {
+            if (err.code && err.code === 'ResourceNotFoundException') {
+                this.log(formatLog('Lambda function not installed. Please run \'install\' first', 'nok'));
+            } else {
+                this.log(formatLog(err.message, 'nok'));
+            }
+            callback();
         }
-
-        callback();
+        
     });
 
 vorpal
