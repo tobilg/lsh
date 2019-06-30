@@ -25,7 +25,7 @@ const extract = (input, isStdout) => {
 // Promisified exec()
 const execPromise = (command) => {
     return new Promise(function(resolve, reject) {
-        exec(`${command} && echo $PWD`, { encoding: 'binary', maxBuffer: MAX_OUTPUT, cwd: cwd }, (error, stdout, stderr) => {
+        exec(`${command} && pwd`, { encoding: 'binary', maxBuffer: MAX_OUTPUT, cwd: cwd }, (error, stdout, stderr) => {
             const cleanedStdout = extract(stdout, true);
             const cleanedStderr = extract(stderr, false);
             // Define response format
