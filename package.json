@@ -1,6 +1,6 @@
 {
   "name": "lambda-shell",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Run interactive shell commands on AWS Lambda",
   "main": "bin/lsh.js",
   "bin": {
