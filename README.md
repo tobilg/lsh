@@ -45,6 +45,14 @@ You can display the `help` like this:
 
 ```
 
+### Using credentials
+
+As `lsh` uses the AWS SDK internally, the same options to specify credentials apply (please refer to the [AWS SDK documentation](https://docs.aws.amazon.com/sdk-for-javascript/v2/developer-guide/setting-credentials-node.html)). E.g. if you have created a credential file with multiple profiles, and want to use a specific profile, you can use the `AWS_PROFILE` [environment variable](https://docs.aws.amazon.com/sdk-for-javascript/v2/developer-guide/loading-node-credentials-shared.html) like this:
+
+```bash
+$ AWS_PROFILE=myprofile lsh
+```
+
 ### Install stack
 
 Before you can use `lsh`, you need to install the neccessary stack by issueing the following command:
