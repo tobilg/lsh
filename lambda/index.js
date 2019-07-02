@@ -19,6 +19,7 @@ const extract = (input, isStdout) => {
     if (lines[lines.length-1].length === 0) lines.pop();
     // Remove second last line and use it as cwd
     if (isStdout) cwd = lines.pop();
+    // Return concatenated output
     return lines.join('\n');
 };
 
