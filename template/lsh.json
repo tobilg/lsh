@@ -85,7 +85,8 @@
         "MemorySize": { "Ref": "MemorySize" },
         "Role": {"Fn::GetAtt": ["InvokeRole", "Arn"] },
         "Runtime": "nodejs8.10",
-        "Timeout": { "Ref": "LambdaTimeout" }
+        "Timeout": { "Ref": "LambdaTimeout" },
+        "ReservedConcurrentExecutions": 1
       }
     }
   },
