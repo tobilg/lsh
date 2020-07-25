@@ -15,30 +15,39 @@ const configPath = `${os.homedir()}/.lsh`;
 // Store config
 let config = {};
 
+// Initialize configuration
+const initalizeConfig = () => {
+    // Start configuration
+    const startConfig = {
+        bucketName: config.bucketName || `lsh-${Math.random().toString(36).substring(2, 15)}`,
+        memorySize: 128,
+        timeout: 60,
+        region: config.region || 'us-east-1',
+        functionName: config.functionName || 'lsh',
+        stackName: config.stackName || 'lambda-shell',
+        useVPC: false
+    };
+    // Write to config file
+    fs.writeFileSync(configPath, JSON.stringify(startConfig));
+    // Return start configuration
+    return startConfig;
+}
+
+// Persist current configuration
+const persistConfig = () => {
+    // Write to config file
+    fs.writeFileSync(configPath, JSON.stringify(config));
+}
+
+// Check if configuration exists, if not, create one from defaults
 try {
     if (fs.statSync(configPath)) {
         // Load config file
         config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
     }
 } catch (err) {
-    // Create config file
-    const startConfig = {
-        bucketName: `lsh-${Math.random().toString(36).substring(2, 15)}`,
-        memorySize: 128,
-        timeout: 60,
-        region: 'us-east-1',
-        functionName: 'lsh',
-        stackName: 'lambda-shell'
-    };
-    // Write to config file
-    fs.writeFileSync(configPath, JSON.stringify(startConfig));
     // Use start config
-    config = startConfig;
-}
-
-const persistConfig = () => {
-    // Write to config file
-    fs.writeFileSync(configPath, JSON.stringify(config));
+    config = initalizeConfig();
 }
 
 // Fornat logs
@@ -147,7 +156,14 @@ vorpal
     .option('-r, --region <regionName>', 'Region to which the Lambda function shall be deployed to (default: us-east-1).')
     .option('-m, --memory <memoryMegabytes>', 'Amount of memory in meagabytes the Lambda function shall have available (default: 1536).')
     .option('-t, --timeout <timeoutSeconds>', 'Timeout in seconds of the Lambda function (default: 60).')
+    .option('-e, --efs-ap-arn <efsAccessPointArn>', 'The ARN of the preconfigured EFS AccessPoint.')
+    .option('-f, --efs-fs-arn <efsFileSystemArn>', 'The ARN of the preconfigured EFS FileSystem.')
+    .option('-p, --path <efsMountPath>', 'The absolute path where the EFS file system shall be mounted (needs to have /mnt/ prefix).')
+    .option('-s, --security-group <securityGroupId>', 'The ID of the VPC SecurityGroup to use.')
+    .option('-n, --subnet <subnetId>', 'The ID of the VPC Subnet to use.')
     .action(async function(command, callback) {
+
+        let isConfigOk = true;
 
         // Handle configuration input
         if (command.options.bucket) {
@@ -162,136 +178,216 @@ vorpal
         if (command.options.timeout) {
             config.timeout = parseInt(command.options.timeout);
         }
-
-        // Write current configuration
-        persistConfig(config);
-
-        // Set archive path
-        const lambdaArchivePath = path.join(os.tmpdir(), '/lambda.zip');
-
-        // Set lambda path
-        const lambdaPath = path.join(__dirname, '../', 'lambda', 'index.js');
-
-        // Dynamic values
-        let bucketExists = false;
-        let templateURL = null;
-        const stackParams = {
-            StackName: config.stackName,
-            Capabilities: ['CAPABILITY_IAM'],
-            Parameters: [
-                {
-                    ParameterKey: 'S3Bucket',
-                    ParameterValue: config.bucketName
-                },
-                {
-                    ParameterKey: 'MemorySize',
-                    ParameterValue: config.memorySize.toString()
-                },
-                {
-                    ParameterKey: 'LambdaTimeout',
-                    ParameterValue: config.timeout.toString()
-                }
-            ]
-        };
-
-        const s3 = new AWS.S3({ region: config.region });
-        const cloudformation = new AWS.CloudFormation({ apiVersion: '2010-05-15', region: config.region });
-
-        // Create archive of Lambda function
-        const output = fs.createWriteStream(lambdaArchivePath);
-        const archive = archiver('zip', {
-            zlib: { level: 9 }
-        });
-
-        archive.pipe(output);
-        archive.append(fs.createReadStream(lambdaPath), { name: 'index.js' });
-        archive.finalize();
-
-        this.log(formatLog(`Temporary Lambda function archive created at ${lambdaArchivePath}`, 'ok'));
-
-        // Check if S3 bucket exists
-        try {
-            await s3.headBucket({
-                Bucket: config.bucketName
-            }).promise();
-            bucketExists = true;
-            this.log(formatLog('Bucket exists', 'ok'));
-        } catch (err) {
-            this.log(formatLog('Bucket doesn\'t exist', 'ok'));
+        if (command.options['efs-ap-arn']) {
+            config.efsAccessPointArn = command.options['efs-ap-arn'];
+        }
+        if (command.options['efs-fs-arn']) {
+            config.efsFileSystemArn = command.options['efs-fs-arn'];
+        }
+        if (command.options.path) {
+            config.efsMountPath = command.options.path;
+        }
+        if (command.options['security-group']) {
+            config.securityGroupId = command.options['security-group'];
+        }
+        if (command.options.subnet) {
+            config.subnetId = command.options.subnet;
+        }
+        
+        // Check VPC configuration
+        if ((config.securityGroupId && !config.subnetId) || (config.subnetId && !config.securityGroupId)) {
+            this.log(formatLog(`Invalid VPC configuration. Please specify both '-s' and the '-n' flags`, 'nok'));
+            isConfigOk = false;
+        } else if (config.securityGroupId && config.subnetId) {
+            this.log(formatLog(`Using VPC`, 'ok'));
+            config.useVPC = true;
         }
 
-        // If not, create S3 bucket
-        if (!bucketExists) {
+        // Check EFS config
+        if ((config.efsAccessPointArn && !config.efsMountPath) || (config.efsMountPath && !config.efsAccessPointArn)) {
+            this.log(formatLog(`Invalid EFS configuration. Please specify both '-e' and the '-p' flags`, 'nok'));
+            isConfigOk = false;
+        } else if ((config.efsAccessPointArn && config.efsMountPath) && !config.useVPC) {
+            this.log(formatLog(`Please also configure the VPC settings if you want to use EFS (both '-s' and the '-n' flags)`, 'nok'));
+            isConfigOk = false;
+        } else {
+            this.log(formatLog(`Using EFS`, 'ok'));
+        }
+
+        // Check if configuration is deemed ok
+        if (isConfigOk) {
+            // Write current configuration
+            persistConfig(config);
+
+            // Set archive path
+            const lambdaArchivePath = path.join(os.tmpdir(), '/lambda.zip');
+
+            // Set lambda path
+            const lambdaPath = path.join(__dirname, '../', 'lambda', 'index.js');
+
+            // Dynamic values
+            let bucketExists = false;
+            let templateURL = null;
+            const stackParams = {
+                StackName: config.stackName,
+                Capabilities: ['CAPABILITY_IAM'],
+                Parameters: [
+                    {
+                        ParameterKey: 'S3Bucket',
+                        ParameterValue: config.bucketName
+                    },
+                    {
+                        ParameterKey: 'MemorySize',
+                        ParameterValue: config.memorySize.toString()
+                    },
+                    {
+                        ParameterKey: 'LambdaTimeout',
+                        ParameterValue: config.timeout.toString()
+                    }
+                ]
+            };
+
+            const s3 = new AWS.S3({ region: config.region });
+            const cloudformation = new AWS.CloudFormation({ apiVersion: '2010-05-15', region: config.region });
+
+            // Create archive of Lambda function
+            const output = fs.createWriteStream(lambdaArchivePath);
+            const archive = archiver('zip', {
+                zlib: { level: 9 }
+            });
+
+            archive.pipe(output);
+            archive.append(fs.createReadStream(lambdaPath), { name: 'index.js' });
+            archive.finalize();
+
+            this.log(formatLog(`Temporary Lambda function archive created at ${lambdaArchivePath}`, 'ok'));
+
+            // Check if S3 bucket exists
             try {
-                await s3.createBucket({
-                    Bucket: config.bucketName,
-                    ACL: 'private'
+                await s3.headBucket({
+                    Bucket: config.bucketName
                 }).promise();
-                this.log(formatLog('Bucket created!', 'ok'));
+                bucketExists = true;
+                this.log(formatLog('Bucket exists', 'ok'));
             } catch (err) {
-                this.log(formatLog('S3 bucket creation failed', 'nok'));
+                this.log(formatLog('Bucket doesn\'t exist', 'ok'));
+            }
+
+            // If not, create S3 bucket
+            if (!bucketExists) {
+                try {
+                    await s3.createBucket({
+                        Bucket: config.bucketName,
+                        ACL: 'private'
+                    }).promise();
+                    this.log(formatLog('Bucket created!', 'ok'));
+                } catch (err) {
+                    this.log(formatLog('S3 bucket creation failed', 'nok'));
+                    callback();
+                }
+            }
+
+            // Upload Lambda archive
+            try {
+                await s3.upload({
+                    Bucket: config.bucketName, 
+                    Key: 'lambda.zip', 
+                    Body: fs.createReadStream(lambdaArchivePath)
+                }).promise();
+                this.log(formatLog('Uploaded Lambda function archive', 'ok'));
+            } catch (err) {
+                this.log(formatLog('Upload of Lambda function archive failed', 'nok'));
                 callback();
             }
-        }
 
-        // Upload Lambda archive
-        try {
-            await s3.upload({
-                Bucket: config.bucketName, 
-                Key: 'lambda.zip', 
-                Body: fs.createReadStream(lambdaArchivePath)
-            }).promise();
-            this.log(formatLog('Uploaded Lambda function archive', 'ok'));
-        } catch (err) {
-            this.log(formatLog('Upload of Lambda function archive failed', 'nok'));
-            callback();
-        }
+            // Read CF template code
+            const templateCode = JSON.parse(fs.readFileSync(path.join(__dirname, '../', '/template/lsh.json')));
 
-        // Upload CloudFormation template
-        try {
-            const uploadTemplateResult = await s3.upload({
-                Bucket: config.bucketName, 
-                Key: 'lsh.json', 
-                Body: fs.createReadStream(path.join(__dirname, '../', '/template/lsh.json'))
-            }).promise();
-            this.log(formatLog('Uploaded CloudFormation template', 'ok'));
+            // Check if EFS is enabled
+            if (config.efsAccessPointArn && config.efsMountPath) {
+                // Add EFS config
+                templateCode.Resources.lshFunction.Properties.FileSystemConfigs = [{
+                    Arn: config.efsAccessPointArn,
+                    LocalMountPath: config.efsMountPath
+                }];
+                templateCode.Resources.lshFunction.Properties.VpcConfig = {
+                    SecurityGroupIds : [config.securityGroupId],
+                    SubnetIds : [config.subnetId]
+                }
+                // Add EFS policy
+                const efsPolicy = {
+                    Sid: 'EFSReadWriteAccess',
+                    Effect: 'Allow',
+                    Action: [
+                        'elasticfilesystem:ClientMount',
+                        'elasticfilesystem:ClientRootAccess',
+                        'elasticfilesystem:ClientWrite',
+                        'elasticfilesystem:DescribeMountTargets'
+                    ],
+                    Resource: config.efsFileSystemArn
+                };
+                templateCode.Resources.InvokeRole.Properties.Policies[0].PolicyDocument.Statement.push(efsPolicy);
+                // Add ENI policy
+                const eniPolicy = {
+                    Sid: 'ENICreateDelete',
+                    Effect: 'Allow',
+                    Action: [
+                        'ec2:CreateNetworkInterface',
+                        'ec2:DescribeNetworkInterfaces',
+                        'ec2:DeleteNetworkInterface'
+                    ],
+                    Resource: '*'
+                };
+                templateCode.Resources.InvokeRole.Properties.Policies[0].PolicyDocument.Statement.push(eniPolicy);
+            }
+
+            // Upload CloudFormation template
+            try {
+                const uploadTemplateResult = await s3.upload({
+                    Bucket: config.bucketName, 
+                    Key: 'lsh.json', 
+                    Body: Buffer.from(JSON.stringify(templateCode), 'utf8')
+                }).promise();
+                this.log(formatLog('Uploaded CloudFormation template', 'ok'));
+                // Set template URL
+                templateURL = uploadTemplateResult.Location;
+            } catch (err) {
+                this.log(formatLog('Upload of CloudFormation template failed', 'nok'));
+                console.log(err)
+                callback();
+            }
+
             // Set template URL
-            templateURL = uploadTemplateResult.Location;
-        } catch (err) {
-            this.log(formatLog('Upload of CloudFormation template failed', 'nok'));
-            callback();
-        }
+            stackParams['TemplateURL'] = templateURL;
 
-        // Set template URL
-        stackParams['TemplateURL'] = templateURL;
-
-        // Create or update stack
-        try {
-            await cloudformation.createStack(stackParams).promise();
-            this.log(formatLog('Stack creation triggered', 'ok'));
-            const creationTimeTaken = await waiter(cloudformation, 'CREATE_COMPLETE');
-            this.log(formatLog(`Stack created (took ${creationTimeTaken}ms)`, 'ok'));
-            callback();
-        } catch (err) {
-            if (err.code && err.code === 'AlreadyExistsException') {
-                this.log(formatLog('Stack already exists, updating stack', 'ok'));
-                try {
-                    await cloudformation.updateStack(stackParams).promise();
-                    this.log(formatLog('Stack update triggered', 'ok'));
-                    const updateTimeTaken = await waiter(cloudformation, 'UPDATE_COMPLETE');
-                    this.log(formatLog(`Stack updated (took ${updateTimeTaken}ms)`, 'ok'));
-                    callback();
-                } catch (err) {
-                    if (err.code && err.code === 'ValidationError') {
-                        this.log(formatLog('No resources changed, skipping', 'ok'));
-                    } else {
-                        this.log(formatLog(err.err, 'nok'));
+            // Create or update stack
+            try {
+                await cloudformation.createStack(stackParams).promise();
+                this.log(formatLog('Stack creation triggered', 'ok'));
+                const creationTimeTaken = await waiter(cloudformation, 'CREATE_COMPLETE');
+                this.log(formatLog(`Stack created (took ${creationTimeTaken}ms)`, 'ok'));
+                callback();
+            } catch (err) {
+                if (err.code && err.code === 'AlreadyExistsException') {
+                    this.log(formatLog('Stack already exists, updating stack', 'ok'));
+                    try {
+                        await cloudformation.updateStack(stackParams).promise();
+                        this.log(formatLog('Stack update triggered', 'ok'));
+                        const updateTimeTaken = await waiter(cloudformation, 'UPDATE_COMPLETE');
+                        this.log(formatLog(`Stack updated (took ${updateTimeTaken}ms)`, 'ok'));
+                        callback();
+                    } catch (err) {
+                        if (err.code && err.code === 'ValidationError') {
+                            this.log(formatLog('No resources changed, skipping', 'ok'));
+                        } else {
+                            this.log(formatLog(err.err, 'nok'));
+                        }
+                        callback();
                     }
+                } else {
+                    this.log(formatLog(err.message, 'nok'));
                     callback();
                 }
-            } else {
-                this.log(formatLog(err.err, 'nok'));
-                callback();
             }
         }
         
@@ -372,6 +468,14 @@ vorpal
         this.log(formatLog(`Timeout    ${config.timeout}s`, 'ok'));
         this.log(formatLog(`Region     ${config.region}`, 'ok'));
         this.log(formatLog(`S3 Bucket  ${config.bucketName}`, 'ok'));
+        callback();
+    });
+
+vorpal
+    .command('reset', 'Reset the current Lambda configuration to the defaults.')
+    .action(function(command, callback) {
+        initalizeConfig();
+        this.log(formatLog(`Reset configuration to defaults`, 'ok'));
         callback();
     });
 

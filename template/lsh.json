@@ -72,7 +72,7 @@
         } ]
       }
     },
-    "function": {
+    "lshFunction": {
       "Type": "AWS::Lambda::Function",
       "Properties": {
         "Code": {
@@ -84,7 +84,7 @@
         "Handler": "index.handler",
         "MemorySize": { "Ref": "MemorySize" },
         "Role": {"Fn::GetAtt": ["InvokeRole", "Arn"] },
-        "Runtime": "nodejs8.10",
+        "Runtime": "nodejs12.x",
         "Timeout": { "Ref": "LambdaTimeout" },
         "ReservedConcurrentExecutions": 1
       }
@@ -92,7 +92,7 @@
   },
   "Outputs": {
     "LambdaFunction": {
-      "Value": {"Ref": "function"}
+      "Value": {"Ref": "lshFunction"}
     }
   }
 }
