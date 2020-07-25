@@ -42,7 +42,7 @@ You can display the `help` like this:
     uninstall           Remove the lsh stack from your AWS account.
     version             Print version information.
     config              Print the current Lambda configuration.
-
+    reset               Reset the current Lambda configuration to the defaults.
 ```
 
 ### Using credentials
@@ -63,11 +63,25 @@ Before you can use `lsh`, you need to install the neccessary stack by issueing t
 
 You can also specify options for the installation of the stack:
 
-```text
--b, --bucket <bucketName>       Name of the S3 bucket.
--r, --region <regionName>       Region to which the Lambda function shall be deployed to (default: us-east-1).
--m, --memory <memoryMegabytes>  Amount of memory in meagabytes the Lambda function shall have available (default: 1536).
--t, --timeout <timeoutSeconds>  Timeout in seconds of the Lambda function (default: 60).
+```bash
+λ help install
+
+  Usage: install [options]
+
+  Deploy the lsh stack in your AWS account.
+
+  Options:
+
+    --help                                  output usage information
+    -b, --bucket <bucketName>               Name of the S3 bucket.
+    -r, --region <regionName>               Region to which the Lambda function shall be deployed to (default: us-east-1).
+    -m, --memory <memoryMegabytes>          Amount of memory in meagabytes the Lambda function shall have available (default: 1536).
+    -t, --timeout <timeoutSeconds>          Timeout in seconds of the Lambda function (default: 60).
+    -e, --efs-ap-arn <efsAccessPointArn>    The ARN of the preconfigured EFS AccessPoint.
+    -f, --efs-fs-arn <efsFileSystemArn>     The ARN of the preconfigured EFS FileSystem.
+    -p, --path <efsMountPath>               The absolute path where the EFS file system shall be mounted (needs to have /mnt/ prefix).
+    -s, --security-group <securityGroupId>  The ID of the VPC SecurityGroup to use.
+    -n, --subnet <subnetId>                 The ID of the VPC Subnet to use.
 ```
 
 For example, to use a maxed-out Lambda shell in the `eu-central-1` region, use 
@@ -149,6 +163,20 @@ To check the current configuration, you can use
 
 The configuration can be changed by running `install` again and specifying different settings via the configuration options.
 
+### Reset configuration
+
+To reset the current configuration to the defaults, you can use
+
+```bash
+λ reset
+ ✓ Reset configuration to defaults
+λ config
+ ✓ Memory     128mb
+ ✓ Timeout    60s
+ ✓ Region     us-east-1
+ ✓ S3 Bucket  lsh-n45lrkvtabc
+```
+
 ### Uninstall stack
 
 To uninstall the created stack run the following command:
@@ -158,6 +186,52 @@ To uninstall the created stack run the following command:
 ```
 
 ## Examples
+
+### Use EFS
+
+To install `lsh` with EFS support, please create a EFS FileSystem and AccessPoint first, as outlined in [this AWS article](https://aws.amazon.com/blogs/compute/using-amazon-efs-for-aws-lambda-in-your-serverless-applications/). Additionally, you need to lookup your Subnet and SecurityGroup IDs you want to use.Then, you can use the ARNs of the FileSystem and AccessPoint to install `lsh` (use the appropriate values):
+
+```bash
+λ install -p /mnt/efs -e arn:aws:elasticfilesystem:us-east-1:111111111111:access-point/fsap-123456789abcdef -f arn:aws:elasticfilesystem:us-east-1:111111111111:file-system/fs-acbdef123 -n subnet-abcdef123 -s sg-abcdef123
+```
+
+The installation can take a few minutes in this case. Once it's completed, you can use the mounted EFS FileSystem like this:
+
+```bash
+λ shell
+ ___       ________  ___  ___     
+|\  \     |\   ____\|\  \|\  \    
+\ \  \    \ \  \___|\ \  \\\  \   
+ \ \  \    \ \_____  \ \   __  \  
+  \ \  \____\|____|\  \ \  \ \  \ 
+   \ \_______\____\_\  \ \__\ \__\
+    \|_______|\_________\|__|\|__|
+             \|_________|         
+                                  
+                                  
+Welcome to the Lambda shell!
+You can now directly enter shell commands which will be run in the Lambda environment. To exit, type `exit`.
+λ $ cd /mnt/efs
+
+λ $ pwd
+/mnt/efs
+λ $ echo "test" > test.txt
+
+λ $ ls -la
+total 12
+drwxrwxrwx 2 1000 1000 6144 Jul 25 12:10 .
+drwxr-xr-x 3 root root 4096 Jul 25 12:10 ..
+-rw-rw-r-- 1 1000 1000    5 Jul 25 12:10 test.txt
+λ $ cat test.txt
+test
+λ $ rm test.txt
+
+λ $ ls -la
+total 8
+drwxrwxrwx 2 1000 1000 6144 Jul 25 12:17 .
+drwxr-xr-x 3 root root 4096 Jul 25 12:10 ..
+λ $ 
+```
 
 ### Download aws-cli
 
