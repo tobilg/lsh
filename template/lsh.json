@@ -20,6 +20,21 @@
       "Description": "Lambda function timeout",
       "Type": "Number",
       "Default": 60
+    },
+    "LambdaRole": {
+      "Description": "Lambda execution role. Creates a new role if not specified",
+      "Type": "String",
+      "Default": ""
+    }
+  },
+  "Conditions": {
+    "CreateRole": {
+      "Fn::Equals": [
+        {
+          "Ref": "LambdaRole"
+        },
+        ""
+      ]
     }
   },
   "Resources": {
@@ -32,6 +47,7 @@
     },
     "InvokeRole": {
       "Type": "AWS::IAM::Role",
+      "Condition": "CreateRole",
       "Properties": {
         "AssumeRolePolicyDocument": {
           "Statement": [ {
@@ -83,7 +99,13 @@
         "Description": "lsh - Lambda function for running shell commands in Lambda environment",
         "Handler": "index.handler",
         "MemorySize": { "Ref": "MemorySize" },
-        "Role": {"Fn::GetAtt": ["InvokeRole", "Arn"] },
+        "Role": {
+          "Fn::If": [
+            "CreateRole",
+            { "Fn::GetAtt": [ "InvokeRole", "Arn" ] },
+            { "Ref": "LambdaRole" }
+          ]
+        },
         "Runtime": "nodejs12.x",
         "Timeout": { "Ref": "LambdaTimeout" },
         "ReservedConcurrentExecutions": 1
