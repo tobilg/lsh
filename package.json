@@ -1,6 +1,6 @@
 {
   "name": "lambda-shell",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Run interactive shell commands on AWS Lambda",
   "main": "bin/lsh.js",
   "bin": {
@@ -28,10 +28,10 @@
   },
   "homepage": "https://github.com/tobilg/lsh#readme",
   "dependencies": {
-    "archiver": "^5.0.0",
-    "aws-sdk": "^2.720.0",
-    "chalk": "^4.1.0",
-    "figlet": "^1.5.0",
+    "archiver": "^5.3.1",
+    "aws-sdk": "^2.1238.0",
+    "chalk": "4.1.2",
+    "figlet": "^1.5.2",
     "vorpal": "^1.12.0"
   }
 }

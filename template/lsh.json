@@ -106,7 +106,7 @@
             { "Ref": "LambdaRole" }
           ]
         },
-        "Runtime": "nodejs12.x",
+        "Runtime": "nodejs16.x",
         "Timeout": { "Ref": "LambdaTimeout" },
         "ReservedConcurrentExecutions": 1
       }
