@@ -161,6 +161,7 @@ vorpal
     .option('-p, --path <efsMountPath>', 'The absolute path where the EFS file system shall be mounted (needs to have /mnt/ prefix).')
     .option('-s, --security-group <securityGroupId>', 'The ID of the VPC SecurityGroup to use.')
     .option('-n, --subnet <subnetId>', 'The ID of the VPC Subnet to use.')
+    .option('-i, --role <roleArn>', 'ARN of the IAM role to be used by the Lambda function. (default: role created by lsh)')
     .action(async function(command, callback) {
 
         let isConfigOk = true;
@@ -193,6 +194,9 @@ vorpal
         if (command.options.subnet) {
             config.subnetId = command.options.subnet;
         }
+        if (command.options.role) {
+            config.roleArn = command.options.role;
+        }
         
         // Check VPC configuration
         if ((config.securityGroupId && !config.subnetId) || (config.subnetId && !config.securityGroupId)) {
@@ -212,6 +216,15 @@ vorpal
             isConfigOk = false;
         } else {
             this.log(formatLog(`Using EFS`, 'ok'));
+        }
+
+        // Check role
+        const arnRegex = /^arn:aws:iam::\d{12}:role\/[a-zA-Z0-9+=,.@\-_/]+$/;
+        if (config.roleArn && !arnRegex.test(config.roleArn)) {
+            this.log(formatLog(`Invalid role ARN. Please specify a valid ARN.`, 'nok'));
+            isConfigOk = false;
+        } else if (config.roleArn) {
+            this.log(formatLog(`Using role ${config.roleArn}`, 'ok'));
         }
 
         // Check if configuration is deemed ok
@@ -243,6 +256,10 @@ vorpal
                     {
                         ParameterKey: 'LambdaTimeout',
                         ParameterValue: config.timeout.toString()
+                    },
+                    {
+                        ParameterKey: 'LambdaRole',
+                        ParameterValue: config.roleArn ? config.roleArn : ''
                     }
                 ]
             };
