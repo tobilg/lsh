@@ -82,9 +82,10 @@ You can also specify options for the installation of the stack:
     -p, --path <efsMountPath>               The absolute path where the EFS file system shall be mounted (needs to have /mnt/ prefix).
     -s, --security-group <securityGroupId>  The ID of the VPC SecurityGroup to use.
     -n, --subnet <subnetId>                 The ID of the VPC Subnet to use.
+    -i, --iamRoleArn <iamRoleArn>           ARN of the IAM role to be used by the Lambda function. (default: role created by lsh)
 ```
 
-For example, to use a maxed-out Lambda shell in the `eu-central-1` region, use 
+For example, to use a Lambda shell with 3GB of memory with a 900 seconds timeout in the `eu-central-1` region, use 
 
 ```text
 λ install -m 3076 -t 900 -r eu-central-1
